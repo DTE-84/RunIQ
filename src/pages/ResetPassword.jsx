@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import PasswordInput from '@/components/PasswordInput';
 
 export default function ResetPassword() {
   const { user } = useAuth();
@@ -37,8 +38,6 @@ export default function ResetPassword() {
     }
   };
 
-  const inputClass =
-    'block w-full pl-10 pr-3 py-3 border border-white/10 rounded-xl bg-black/50 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent sm:text-sm';
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center p-4">
@@ -59,28 +58,8 @@ export default function ResetPassword() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="relative">
-              <Lock className="absolute left-3 top-3.5 h-5 w-5 text-neutral-500" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className={inputClass}
-                placeholder="New password"
-                autoComplete="new-password"
-              />
-            </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3.5 h-5 w-5 text-neutral-500" />
-              <input
-                type="password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className={inputClass}
-                placeholder="Confirm new password"
-                autoComplete="new-password"
-              />
-            </div>
+            <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} placeholder="New password" autoComplete="new-password" />
+            <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Confirm new password" autoComplete="new-password" />
             {error && (
               <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 p-3 rounded-lg border border-red-400/20">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />

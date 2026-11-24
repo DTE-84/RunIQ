@@ -5,12 +5,18 @@
 -- 1) Offers: each user can only see and change their own rows.
 alter table public.offers enable row level security;
 
-drop policy if exists "offers_select_own" on public.offers;
-drop policy if exists "offers_insert_own" on public.offers;
-drop policy if exists "offers_delete_own" on public.offers;
-create policy "offers_select_own" on public.offers for select using (auth.uid() = user_id);
-create policy "offers_insert_own" on public.offers for insert with check (auth.uid() = user_id);
-create policy "offers_delete_own" on public.offers for delete using (auth.uid() = user_id);
+-- Remove every older policy on offers (they overlap and some apply to anonymous visitors), then add ours.
+do $$
+declare pol record;
+begin
+  for pol in select policyname from pg_policies where schemaname = 'public' and tablename = 'offers' loop
+    execute format('drop policy %I on public.offers', pol.policyname);
+  end loop;
+end $$;
+
+create policy "offers_select_own" on public.offers for select to authenticated using (auth.uid() = user_id);
+create policy "offers_insert_own" on public.offers for insert to authenticated with check (auth.uid() = user_id);
+create policy "offers_delete_own" on public.offers for delete to authenticated using (auth.uid() = user_id);
 
 -- Offers saved before this change with no owner: assign them to yourself, then delete the rest.
 -- Replace the email, uncomment, and run:

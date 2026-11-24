@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Sparkles, Mail, Lock, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Sparkles, Mail, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import PasswordInput from '@/components/PasswordInput';
 import { motion } from 'framer-motion';
+
+// Supabase sometimes returns a raw "{}" or empty message when its email sender fails.
+const friendlyError = (message, fallback) =>
+  !message || message.trim().startsWith('{') ? fallback : message;
 
 export default function Auth() {
   const [email, setEmail] = useState('');
@@ -70,7 +75,7 @@ export default function Auth() {
         navigate('/');
       }
     } catch (err) {
-      setError(err.message || 'An error occurred during authentication.');
+      setError(friendlyError(err.message, 'Something went wrong. Please try again in a few minutes.'));
     } finally {
       setLoading(false);
     }
@@ -91,7 +96,7 @@ export default function Auth() {
       if (error) throw error;
       setMessage('If an account exists for that email, a reset link is on its way. Check spam if it does not arrive.');
     } catch (err) {
-      setError(err.message || 'Could not send the reset email.');
+      setError(friendlyError(err.message, 'We could not send the reset email right now. Please try again in a few minutes.'));
     } finally {
       setLoading(false);
     }
@@ -175,36 +180,13 @@ export default function Auth() {
 
             <div>
               <label className="block text-sm font-semibold text-neutral-300 mb-2">Password</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-neutral-500" />
-                </div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-white/10 rounded-xl bg-black/50 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition-all sm:text-sm"
-                  placeholder="••••••••"
-                />
-              </div>
+              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={isSignUp ? 'new-password' : 'current-password'} />
             </div>
 
             {isSignUp && (
               <div>
                 <label className="block text-sm font-semibold text-neutral-300 mb-2">Re-type password</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-neutral-500" />
-                  </div>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    autoComplete="new-password"
-                    className="block w-full pl-10 pr-3 py-3 border border-white/10 rounded-xl bg-black/50 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition-all sm:text-sm"
-                    placeholder="••••••••"
-                  />
-                </div>
+                <PasswordInput value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
               </div>
             )}
 

@@ -1,9 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
+
+function isAuthorized(req) {
+  const expected = process.env.INGEST_SHARED_SECRET;
+  if (!expected) return false; // fail closed if the secret isn't configured
+
+  const provided = req.headers['x-runiq-secret'] || '';
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  if (expectedBuf.length !== providedBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
+}
 
 export default async function handler(req, res) {
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!isAuthorized(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   // Initialize Supabase Admin Client

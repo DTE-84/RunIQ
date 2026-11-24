@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Zap, Fuel, GaugeCircle, Pencil, CheckCheck, Undo2, MapPin, ShoppingBag } from "lucide-react";
+import { Zap, Fuel, GaugeCircle, Pencil, CheckCheck, Undo2, MapPin, ShoppingBag, ScanLine, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 const STORAGE_KEY = "spark_defaults";
@@ -37,8 +37,52 @@ export default function OfferForm({ onEvaluate, isLoading }) {
   
   const [settings, setSettings] = useState({ mpg: saved.mpg || "", gas_price: saved.gas_price || "" });
   const [editingSettings, setEditingSettings] = useState(!saved.mpg || !saved.gas_price);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState("");
+  const fileInputRef = useRef(null);
 
   const handleOfferChange = (field, value) => setOffer(prev => ({ ...prev, [field]: value }));
+
+  const fileToBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const handleScanFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    setIsScanning(true);
+    setScanError("");
+    try {
+      const image_base64 = await fileToBase64(file);
+      const res = await fetch('/api/scan-offer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_base64, platform: offer.platform }),
+      });
+      if (!res.ok) throw new Error('Scan failed');
+      const { data } = await res.json();
+
+      setOffer(prev => ({
+        ...prev,
+        platform: data.platform || prev.platform,
+        pay: data.pay != null ? String(data.pay) : prev.pay,
+        tips: data.tips != null ? String(data.tips) : prev.tips,
+        miles: data.miles != null ? String(data.miles) : prev.miles,
+        time_minutes: data.time_minutes != null ? String(data.time_minutes) : prev.time_minutes,
+        items: data.items != null ? String(data.items) : prev.items,
+        dropoff_zone: data.dropoff_zone || prev.dropoff_zone,
+      }));
+    } catch (err) {
+      setScanError("Couldn't read that screenshot — enter the numbers manually.");
+    } finally {
+      setIsScanning(false);
+    }
+  };
   const handleSettingsChange = (field, value) => {
     const updated = { ...settings, [field]: value };
     setSettings(updated);
@@ -59,6 +103,7 @@ export default function OfferForm({ onEvaluate, isLoading }) {
       mpg: parseFloat(settings.mpg),
       gas_price: parseFloat(settings.gas_price),
       timestamp: new Date().toISOString(), // Pass current time for context
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
   };
 
@@ -93,6 +138,35 @@ export default function OfferForm({ onEvaluate, isLoading }) {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Scan Screenshot */}
+      <div className="space-y-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleScanFile}
+        />
+        <motion.button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isScanning}
+          whileTap={!isScanning ? { scale: 0.98 } : {}}
+          className="w-full h-14 flex items-center justify-center gap-2 rounded-2xl border border-dashed border-[#00FF85]/30 bg-[#00FF85]/5 text-[#00FF85] font-bold text-sm hover:bg-[#00FF85]/10 transition-colors disabled:opacity-60"
+        >
+          {isScanning ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> Scanning screenshot...
+            </>
+          ) : (
+            <>
+              <ScanLine className="w-4 h-4" /> Scan Offer Screenshot
+            </>
+          )}
+        </motion.button>
+        {scanError && <p className="text-xs font-semibold text-red-500 pl-1">{scanError}</p>}
       </div>
 
       {/* Offer Fields */}

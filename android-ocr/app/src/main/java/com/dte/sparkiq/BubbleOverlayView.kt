@@ -45,8 +45,9 @@ class BubbleOverlayView(private val context: Context) {
 
         overlayView = createView(netPerHour, dollarsPerMile, isValid)
         setupDragListener(overlayView!!, layoutParams)
-        
+
         windowManager.addView(overlayView, layoutParams)
+        updateBubble(netPerHour, dollarsPerMile, isValid)
     }
 
     private fun updateBubble(netPerHour: Double, dollarsPerMile: Double, isValid: Boolean) {

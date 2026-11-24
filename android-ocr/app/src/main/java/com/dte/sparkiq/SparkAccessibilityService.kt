@@ -8,6 +8,7 @@ import android.graphics.ColorSpace
 import android.hardware.HardwareBuffer
 import android.os.Build
 import android.util.Log
+import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import androidx.annotation.RequiresApi
 import com.google.mlkit.vision.common.InputImage
@@ -20,9 +21,17 @@ import kotlinx.coroutines.withContext
 
 class SparkAccessibilityService : AccessibilityService() {
 
+    private companion object {
+        const val CAPTURE_INTERVAL_MS = 1500L
+        const val OFFER_DEDUPE_MS = 60_000L
+    }
+
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     private val scope = CoroutineScope(Dispatchers.IO)
     private var isProcessing = false
+    private var lastCaptureAt = 0L
+    private var lastOfferKey: String? = null
+    private var lastOfferAt = 0L
 
     private var bubbleOverlayView: BubbleOverlayView? = null
 
@@ -46,7 +55,9 @@ class SparkAccessibilityService : AccessibilityService() {
             val packageName = event.packageName?.toString() ?: return
             
             if (packageName.contains("sparkdriver", ignoreCase = true)) {
-                if (!isProcessing) {
+                val now = System.currentTimeMillis()
+                if (!isProcessing && now - lastCaptureAt >= CAPTURE_INTERVAL_MS) {
+                    lastCaptureAt = now
                     Log.d("SparkIQ_OCR", "Gig App Foregrounded: $packageName. Initiating silent capture.")
                     captureAndProcessScreen()
                 }
@@ -87,23 +98,24 @@ class SparkAccessibilityService : AccessibilityService() {
         val colorSpace = screenshot.colorSpace
         
         // Convert HardwareBuffer to Bitmap for ML Kit
-        val bitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, colorSpace)
+        val hardwareBitmap = Bitmap.wrapHardwareBuffer(hardwareBuffer, colorSpace)
+        // ML Kit can't read HARDWARE-config bitmaps, so copy to a software bitmap first.
+        val bitmap = hardwareBitmap?.copy(Bitmap.Config.ARGB_8888, false)
+        hardwareBuffer.close()
         if (bitmap == null) {
             isProcessing = false
             return
         }
 
         val image = InputImage.fromBitmap(bitmap, 0)
-        
+
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
-                hardwareBuffer.close()
                 scope.launch {
                     analyzeTextForMetrics(visionText.text)
                 }
             }
             .addOnFailureListener { e ->
-                hardwareBuffer.close()
                 Log.e("SparkIQ_OCR", "ML Kit OCR Failed", e)
                 isProcessing = false
             }
@@ -137,18 +149,29 @@ class SparkAccessibilityService : AccessibilityService() {
                 Log.d("SparkIQ_OCR", "High-Fidelity Telemetry Extracted: Price=$priceMatch, Miles=$milesMatch, Items=$itemsMatch")
                 Log.d("SparkIQ_OCR", "Calculated Logic: $/Mile=$dollarsPerMile")
 
-                // Invoke BubbleOverlayView with calculated metrics on Main Thread
-                withContext(Dispatchers.Main) {
-                    val isValid = netPerHour >= 20.0
-                    bubbleOverlayView?.showBubble(netPerHour, dollarsPerMile, isValid)
-                    
-                    // After 5 seconds, clear the bubble to keep the UI clean
-                    kotlinx.coroutines.delay(5000)
-                    bubbleOverlayView?.removeBubble()
-                }
+                // The same offer stays on screen across many captures; only act on it once.
+                val offerKey = "$priceMatch|$milesMatch|${itemsMatch ?: 0}"
+                val now = System.currentTimeMillis()
+                val isRepeat = offerKey == lastOfferKey && now - lastOfferAt < OFFER_DEDUPE_MS
+                lastOfferKey = offerKey
+                lastOfferAt = now
 
-                // Dispatch telemetry payload to Supabase Edge
-                TelemetryClient.dispatch(priceMatch, milesMatch, itemsMatch ?: 0, netPerHour, dollarsPerMile)
+                if (!isRepeat) {
+                    // Dispatch telemetry payload to the RunIQ backend (fire-and-forget while bubble shows)
+                    scope.launch {
+                        TelemetryClient.dispatch(priceMatch, milesMatch, itemsMatch ?: 0, netPerHour, dollarsPerMile)
+                    }
+
+                    // Invoke BubbleOverlayView with calculated metrics on Main Thread
+                    withContext(Dispatchers.Main) {
+                        val isValid = netPerHour >= 20.0
+                        bubbleOverlayView?.showBubble(netPerHour, dollarsPerMile, isValid)
+
+                        // After 5 seconds, clear the bubble to keep the UI clean
+                        kotlinx.coroutines.delay(5000)
+                        bubbleOverlayView?.removeBubble()
+                    }
+                }
             }
             isProcessing = false
         }

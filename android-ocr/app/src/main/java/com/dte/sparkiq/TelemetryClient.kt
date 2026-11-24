@@ -13,10 +13,13 @@ object TelemetryClient {
     private val client = OkHttpClient()
     private val JSON = "application/json; charset=utf-8".toMediaType()
 
-    // Using VITE_SUPABASE_URL from .env
-    private const val SUPABASE_URL = "https://dkrtfwqovhepurzzqfjl.supabase.co" 
-    // Using SUPABASE_SERVICE_ROLE_KEY from .env.local to bypass RLS for telemetry ingestion
-    private const val SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcnRmd3FvdmhlcHVyenpxZmpsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Mjk2NTU4NiwiZXhwIjoyMDk4NTQxNTg2fQ.0aEgzGXsyBMpxxqK4qv6aIwwE-v09ZDeYA_lGoRCEIA"
+    // RunIQ's own backend. The service role key stays server-side in Vercel env vars
+    // (see api/ingest-offer.js) and is never shipped inside the app.
+    private const val BACKEND_URL = "https://runiq-ashen.vercel.app/api/ingest-offer"
+    // Shared secret gating this endpoint. Must match INGEST_SHARED_SECRET in Vercel.
+    // Extractable from the APK like any client-embedded key — it stops opportunistic
+    // spam of the offers table, not a determined attacker with the decompiled app.
+    private const val SHARED_SECRET = "e55dadb602df5acca5ab6473b2573c74faf2bd9400f16e82d6bbe836f68c83cc"
 
     suspend fun dispatch(price: Double, miles: Double, items: Int, netPerHour: Double, dollarsPerMile: Double) {
         withContext(Dispatchers.IO) {
@@ -41,11 +44,9 @@ object TelemetryClient {
                 val body = jsonPayload.toString().toRequestBody(JSON)
                 
                 val request = Request.Builder()
-                    .url("$SUPABASE_URL/rest/v1/offers") // Targeting the actual 'offers' table
-                    .addHeader("apikey", SUPABASE_KEY)
-                    .addHeader("Authorization", "Bearer $SUPABASE_KEY")
+                    .url(BACKEND_URL)
                     .addHeader("Content-Type", "application/json")
-                    .addHeader("Prefer", "return=minimal")
+                    .addHeader("x-runiq-secret", SHARED_SECRET)
                     .post(body)
                     .build()
 

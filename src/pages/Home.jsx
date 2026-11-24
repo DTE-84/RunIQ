@@ -197,7 +197,12 @@ export default function Home() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <OfferHistory offers={offers} onDelete={(id) => deleteMutation.mutate(id)} />
+          <OfferHistory
+            offers={offers}
+            onDelete={(id) => deleteMutation.mutate(id)}
+            onClearAll={() => clearAllMutation.mutate()}
+            isClearingAll={clearAllMutation.isPending}
+          />
         </motion.div>
       </div>
 

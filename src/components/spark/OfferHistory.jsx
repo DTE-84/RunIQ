@@ -15,7 +15,10 @@ const ratingStyles = {
   bad: "bg-red-500/10 text-red-500 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)]",
 };
 
-export default function OfferHistory({ offers, onDelete }) {
+// DB timestamps are UTC; a column without a timezone comes back with no "Z" and would be read as local time.
+const parseDbDate = (ts) => parseISO(/(Z|[+-]\d{2}(:?\d{2})?)$/i.test(ts) ? ts : `${ts}Z`);
+
+export default function OfferHistory({ offers, onDelete, onClearAll, isClearingAll }) {
   const [expandedDays, setExpandedDays] = useState({});
 
   const toggleDay = (dateStr) => {
@@ -25,11 +28,11 @@ export default function OfferHistory({ offers, onDelete }) {
   const groupedOffers = useMemo(() => {
     const groups = {};
     offers.forEach((offer) => {
-      const dateStr = offer.created_at ? format(parseISO(offer.created_at), "yyyy-MM-dd") : "Unknown";
+      const dateStr = offer.created_at ? format(parseDbDate(offer.created_at), "yyyy-MM-dd") : "Unknown";
       if (!groups[dateStr]) {
         groups[dateStr] = {
           dateStr,
-          date: offer.created_at ? parseISO(offer.created_at) : new Date(),
+          date: offer.created_at ? parseDbDate(offer.created_at) : new Date(),
           offers: [],
           totalPay: 0,
           totalTips: 0,
@@ -173,7 +176,7 @@ export default function OfferHistory({ offers, onDelete }) {
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-[10px] font-bold text-neutral-500 hidden sm:block">
-                              {offer.created_at ? format(parseISO(offer.created_at), "h:mm a") : ""}
+                              {offer.created_at ? format(parseDbDate(offer.created_at), "h:mm a") : ""}
                             </span>
                             <Button
                               variant="ghost"
@@ -194,6 +197,23 @@ export default function OfferHistory({ offers, onDelete }) {
           );
         })}
       </div>
+
+      {/* Clear Saved Trips */}
+      {onClearAll && (
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm("Clear all saved trips? This can't be undone.")) {
+              onClearAll();
+            }
+          }}
+          disabled={isClearingAll}
+          className="w-full h-12 flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/5 text-red-500 text-sm font-bold hover:bg-red-500/10 transition-colors disabled:opacity-40"
+        >
+          <Trash2 className="w-4 h-4" />
+          {isClearingAll ? "Clearing..." : "Clear Saved Trips"}
+        </button>
+      )}
     </div>
   );
 }

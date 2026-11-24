@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   }
 
   const {
-    platform, pay, tips, miles, miles_back, time_minutes, items, dropoff_zone, mpg, gas_price, timestamp
+    platform, pay, tips, miles, miles_back, time_minutes, items, dropoff_zone, mpg, gas_price, timestamp, timezone
   } = req.body;
 
   if (!platform || !pay || !miles || !time_minutes) {
@@ -23,8 +23,16 @@ export default async function handler(req, res) {
   const net_profit = pay - gas_cost;
   const hourly_rate = (net_profit / time_minutes) * 60;
   const per_mile_rate = pay / total_miles;
-  const timeString = new Date(timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  const dayString = new Date(timestamp).toLocaleDateString('en-US', { weekday: 'long' });
+  // Vercel runs in UTC, so format in the driver's own timezone.
+  let tz;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone });
+    tz = timezone;
+  } catch {
+    tz = undefined;
+  }
+  const timeString = new Date(timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: tz });
+  const dayString = new Date(timestamp).toLocaleDateString('en-US', { weekday: 'long', timeZone: tz });
 
   const systemPrompt = `You are RunIQ, an elite AI assistant for gig economy drivers. Your job is to analyze delivery/rideshare offers and give brutal, context-aware advice on whether to accept or decline.
 

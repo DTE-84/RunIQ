@@ -1,4 +1,4 @@
-package com.dte.sparkiq
+package com.dte.runiq
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityService.ScreenshotResult
@@ -159,7 +159,7 @@ class SparkAccessibilityService : AccessibilityService() {
                 if (!isRepeat) {
                     // Dispatch telemetry payload to the RunIQ backend (fire-and-forget while bubble shows)
                     scope.launch {
-                        TelemetryClient.dispatch(priceMatch, milesMatch, itemsMatch ?: 0, netPerHour, dollarsPerMile)
+                        TelemetryClient.dispatch(applicationContext, priceMatch, milesMatch, itemsMatch ?: 0, netPerHour, dollarsPerMile)
                     }
 
                     // Invoke BubbleOverlayView with calculated metrics on Main Thread

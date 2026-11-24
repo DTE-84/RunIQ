@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin, requireDeviceUser, consumeUsage } from './_lib/auth.js';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -18,29 +18,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Expecting a JSON body from the iOS Shortcut: { "image_base64": "...", "user_id": "...", "feedback_preference": "speak" | "banner" }
-  const { image_base64, user_id, feedback_preference = 'speak' } = req.body;
+  // Header: x-runiq-key (the user's phone key). Body: { "image_base64": "...", "feedback_preference": "speak" | "banner" }
+  const targetUserId = await requireDeviceUser(req, res);
+  if (!targetUserId) return;
+
+  const { image_base64, feedback_preference = 'speak', timezone } = req.body || {};
 
   if (!image_base64) {
     return res.status(400).json({ error: 'Missing image_base64 in request body' });
   }
 
-  // Initialize Supabase Admin Client
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
-  );
+  if (!(await consumeUsage(targetUserId, 'scan', timezone, res))) return;
 
   try {
-    let targetUserId = user_id;
-
-    // If no user_id is provided, fallback to the primary user (Single-Tenant MVP)
-    if (!targetUserId) {
-      const { data: users, error: userError } = await supabase.auth.admin.listUsers();
-      if (!userError && users?.users?.length) {
-        targetUserId = users.users[0].id;
-      }
-    }
 
     const systemPrompt = `You are RunIQ, an elite AI assistant for gig economy drivers. Your job is to extract data from this delivery screenshot and evaluate it.
     
@@ -75,7 +65,7 @@ export default async function handler(req, res) {
 
     // Call Claude 3 Haiku for Vision Processing
     const response = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 300,
       messages: [
         {
@@ -114,7 +104,7 @@ export default async function handler(req, res) {
 
     // Insert the extracted data into Supabase
     const dbPayload = {
-      user_id: targetUserId || null,
+      user_id: targetUserId,
       platform: extractedData.platform || 'Spark',
       pay: extractedData.pay || 0,
       tips: extractedData.tips || 0,
@@ -130,7 +120,7 @@ export default async function handler(req, res) {
       gas_cost: extractedData.metrics?.gas_cost || 0
     };
 
-    const { error: insertError } = await supabase.from('offers').insert([dbPayload]);
+    const { error: insertError } = await supabaseAdmin.from('offers').insert([dbPayload]);
     if (insertError) {
       console.error('Database Insert Error:', insertError);
       // We don't throw here so we can still return the evaluation to the driver!
@@ -149,6 +139,6 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('iOS Ingest Error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to read screenshot.' });
   }
 }

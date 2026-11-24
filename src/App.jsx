@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 import Home from './pages/Home'
 import Auth from './pages/Auth'
 import Pricing from './pages/Pricing'
+import { Privacy, Terms } from './pages/Legal'
 import InstallPrompt from './components/InstallPrompt'
 import { AuthProvider, useAuth } from './context/AuthContext'
 
@@ -23,6 +24,8 @@ function App() {
         <Router>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="/pricing" element={
               <ProtectedRoute>
                 <Pricing />

@@ -7,7 +7,7 @@ export const offersApi = {
     const { data, error } = await supabase
       .from('offers')
       .select('*')
-      .or(`user_id.eq.${userId},user_id.is.null`)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
       
     if (error) {

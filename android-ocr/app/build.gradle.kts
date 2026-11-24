@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.dte.sparkiq"
+    namespace = "com.dte.runiq"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.dte.sparkiq"
+        applicationId = "com.dte.runiq"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 
 export default function InstallPrompt() {
   const [installPromptEvent, setInstallPromptEvent] = useState(null);

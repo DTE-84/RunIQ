@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Sparkles, Mail, Lock, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
@@ -204,7 +204,11 @@ export default function Auth() {
           </div>
         </motion.div>
 
-
+        <p className="text-center text-xs text-neutral-500">
+          By continuing you agree to our{' '}
+          <Link to="/terms" className="text-neutral-300 underline">Terms</Link> and{' '}
+          <Link to="/privacy" className="text-neutral-300 underline">Privacy Policy</Link>.
+        </p>
       </div>
     </div>
   );

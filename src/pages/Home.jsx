@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { offersApi } from "@/api/offers";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Sparkles, LogOut, Settings } from "lucide-react";
+import { Link } from "react-router-dom";
+import { apiPost } from "@/lib/apiFetch";
 import OfferForm from "@/components/spark/OfferForm";
 import OfferResult from "@/components/spark/OfferResult";
 import OfferHistory from "@/components/spark/OfferHistory";
@@ -46,20 +48,7 @@ export default function Home() {
 
   const evaluateMutation = useMutation({
     mutationFn: async (formData) => {
-      const res = await fetch('/api/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      if (!res.ok) {
-        let errorMsg = 'Failed to evaluate offer';
-        try {
-          const errData = await res.json();
-          if (errData.error) errorMsg = errData.error;
-        } catch(e) {}
-        throw new Error(errorMsg);
-      }
-      const data = await res.json();
+      const data = await apiPost('/api/evaluate', formData);
       return { ...formData, ...data };
     },
     onSuccess: (data) => {
@@ -139,6 +128,14 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {!isPremium && (
+                <Link
+                  to="/pricing"
+                  className="px-3 py-2 bg-[#00FF85] text-black text-xs font-black uppercase tracking-wider rounded-full hover:bg-[#34D399] transition-colors"
+                >
+                  Upgrade
+                </Link>
+              )}
               <button 
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2.5 bg-white/5 border border-white/5 rounded-full hover:bg-white/10 hover:text-white text-neutral-400 transition-all active:scale-95"
@@ -211,6 +208,7 @@ export default function Home() {
         onClose={() => setIsSettingsOpen(false)} 
         onClearHistory={() => clearAllMutation.mutate()}
         isClearing={clearAllMutation.isPending}
+        isPremium={isPremium}
       />
     </div>
   );

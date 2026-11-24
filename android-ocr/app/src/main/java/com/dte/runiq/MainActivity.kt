@@ -1,10 +1,12 @@
-package com.dte.sparkiq
+package com.dte.runiq
 
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
+import android.widget.EditText
+import android.widget.Toast
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -24,7 +26,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         root.addView(TextView(this).apply {
-            text = "SparkIQ setup"
+            text = "RunIQ setup"
             textSize = 24f
         })
 
@@ -42,8 +44,27 @@ class MainActivity : AppCompatActivity() {
         serviceStatus = TextView(this).apply { textSize = 16f; setPadding(0, pad, 0, 0) }
         root.addView(serviceStatus)
         root.addView(Button(this).apply {
-            text = "2. Turn on SparkIQ in Accessibility"
+            text = "2. Turn on RunIQ Offer Reader in Accessibility"
             setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        })
+
+        root.addView(TextView(this).apply {
+            text = "3. Paste your connection key (RunIQ app > Settings > Phone Connection Key)"
+            textSize = 16f
+            setPadding(0, pad, 0, 0)
+        })
+        val keyInput = EditText(this).apply {
+            hint = "riq_..."
+            setText(TelemetryClient.loadKey(this@MainActivity))
+            setSingleLine(true)
+        }
+        root.addView(keyInput)
+        root.addView(Button(this).apply {
+            text = "Save key"
+            setOnClickListener {
+                TelemetryClient.saveKey(this@MainActivity, keyInput.text.toString())
+                Toast.makeText(this@MainActivity, "Key saved", Toast.LENGTH_SHORT).show()
+            }
         })
 
         setContentView(root)

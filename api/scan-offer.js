@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { requireUser, consumeUsage } from './_lib/auth.js';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -17,11 +18,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { image_base64, platform } = req.body;
+  const user = await requireUser(req, res);
+  if (!user) return;
+
+  const { image_base64, platform, timezone } = req.body;
 
   if (!image_base64) {
     return res.status(400).json({ error: 'Missing image_base64 in request body' });
   }
+
+  if (!(await consumeUsage(user.id, 'scan', timezone, res))) return;
 
   const systemPrompt = `You are looking at a screenshot of a gig delivery offer from a driver app (likely ${platform || 'Spark Driver'}).
 

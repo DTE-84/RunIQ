@@ -7,8 +7,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
     <application
-        android:allowBackup="true"
-        android:label="SparkIQ Telemetry"
+        android:allowBackup="false"
+        android:label="RunIQ Overlay"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
 
@@ -25,7 +25,7 @@
         <!-- The Core Accessibility Service that acts as our Interceptor -->
         <service
             android:name=".SparkAccessibilityService"
-            android:label="SparkIQ OCR Interceptor"
+            android:label="RunIQ Offer Reader"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>

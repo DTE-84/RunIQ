@@ -1,4 +1,4 @@
-package com.dte.sparkiq
+package com.dte.runiq
 
 import android.content.Context
 import android.graphics.Color

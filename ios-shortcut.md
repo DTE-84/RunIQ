@@ -21,13 +21,13 @@ Open the **Shortcuts** app on your iPhone and create a new Shortcut named "RunIQ
 
 ### Step 3: Send to Vercel Backend
 1. Add the action: **Get Contents of URL**
-2. URL: `https://[YOUR_VERCEL_DOMAIN]/api/ios-ingest`
+2. URL: `https://runiq-ashen.vercel.app/api/ios-ingest`
 3. Tap "Show More" on the action:
    - Method: **POST**
    - Headers: Add `Content-Type: application/json`
    - Request Body: **JSON**
    - Add new field: `image_base64` -> Select the "Base64 Encoded" magic variable.
-   - Add new field (Optional): `user_id` -> Enter the driver's unique ID.
+   - Under Headers, also add `x-runiq-key` -> paste your Phone Connection Key (RunIQ app > Settings > Phone Connection Key). This is what ties the shortcut to your account.
    - Add new field (Optional): `feedback_preference` -> Enter `speak` or `banner`.
 
 ### Step 4: Parse the Response

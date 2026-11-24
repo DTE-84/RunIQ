@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { requireUser, consumeUsage } from './_lib/auth.js';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -9,6 +10,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const user = await requireUser(req, res);
+  if (!user) return;
+
   const {
     platform, pay, tips, miles, miles_back, time_minutes, items, dropoff_zone, mpg, gas_price, timestamp, timezone
   } = req.body;
@@ -16,6 +20,8 @@ export default async function handler(req, res) {
   if (!platform || !pay || !miles || !time_minutes) {
     return res.status(400).json({ error: 'Missing required offer details' });
   }
+
+  if (!(await consumeUsage(user.id, 'evaluate', timezone, res))) return;
 
   // Pre-calculate hard metrics
   const total_miles = miles + (miles_back || 0);

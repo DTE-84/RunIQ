@@ -3,49 +3,34 @@ import { useAuth } from '@/context/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { motion } from 'framer-motion';
 import { Check, Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { apiPost } from '@/lib/apiFetch';
 
 const TIERS = [
   {
-    id: 'weekly',
-    name: 'The Weekly Pass',
-    priceId: 'price_weekly_placeholder', // To be replaced in .env/Stripe
-    price: '$2.99',
-    period: 'week',
-    target: 'The Weekend Warrior',
-    features: [
-      'Basic manual calculations',
-      'MPG & Fuel tracking',
-      'Single-platform support'
-    ]
-  },
-  {
     id: 'monthly',
-    name: 'The Monthly Sub',
-    priceId: 'price_monthly_placeholder',
-    price: '$7.99',
+    name: 'Monthly',
+    price: '$9.99',
     period: 'month',
-    target: 'The Everyday Hustler',
+    target: 'Cancel anytime',
     isPopular: true,
+    trial: '7-day free trial',
     features: [
-      'Full MediaProjection mirror',
-      'Deadhead analytics',
-      'Multi-app stacking',
-      'Everything in Weekly'
+      'Screenshot scan: up to 150 a day',
+      'Unlimited saved trips, daily and all-time totals',
+      'AI offer ratings with deadhead and gas costs',
+      'Android overlay auto-capture'
     ]
   },
   {
     id: 'annual',
-    name: 'The Annual Pass',
-    priceId: 'price_annual_placeholder',
-    price: '$69.99',
+    name: 'Annual',
+    price: '$79.99',
     period: 'year',
-    target: 'The Full-Time Sniper',
+    target: 'Best value: save 33%',
     features: [
-      'Priority server access',
-      'Dropoff Zone filtering',
-      'Exportable state tax sheets',
-      'Everything in Monthly'
+      'Everything in Monthly',
+      'Two months free vs. paying monthly'
     ]
   }
 ];
@@ -56,24 +41,15 @@ export default function Pricing() {
   const navigate = useNavigate();
   const [loadingId, setLoadingId] = useState(null);
 
-  const handleSubscribe = async (priceId) => {
+  const handleSubscribe = async (plan) => {
     if (!user) return;
     try {
-      setLoadingId(priceId);
-      const res = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceId,
-          userId: user.id
-        })
-      });
-      
-      const data = await res.json();
+      setLoadingId(plan);
+      const data = await apiPost('/api/create-checkout-session', { plan });
       if (data.url) {
         window.location.href = data.url;
       } else {
-        throw new Error(data.error || 'Failed to create checkout session');
+        throw new Error('Failed to create checkout session');
       }
     } catch (err) {
       console.error(err);
@@ -106,11 +82,11 @@ export default function Pricing() {
           </motion.div>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">Maximize Your Earnings.</h1>
           <p className="text-neutral-400 max-w-lg mx-auto text-lg">
-            Invest in the tools that pay for themselves on the very first drive. High-fidelity analytics for serious drivers.
+            Scan an offer, see if it's worth it, and keep every trip. Manual entry stays free, with a few free scans a day.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
           {TIERS.map((t, idx) => (
             <motion.div
               key={t.id}
@@ -146,8 +122,8 @@ export default function Pricing() {
               </ul>
 
               <button
-                disabled={loadingId === t.priceId || tier === t.id}
-                onClick={() => handleSubscribe(t.priceId)}
+                disabled={loadingId === t.id || tier === t.id}
+                onClick={() => handleSubscribe(t.id)}
                 className={`w-full py-4 rounded-2xl font-bold tracking-wide transition-all flex items-center justify-center gap-2 ${
                   tier === t.id 
                     ? 'bg-white/10 text-white/50 cursor-not-allowed'
@@ -156,17 +132,22 @@ export default function Pricing() {
                       : 'bg-white/10 text-white hover:bg-white/20 active:scale-95'
                 }`}
               >
-                {loadingId === t.priceId ? (
+                {loadingId === t.id ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : tier === t.id ? (
                   'Current Plan'
                 ) : (
-                  'Subscribe Now'
+                  t.trial ? 'Start Free Trial' : 'Subscribe Now'
                 )}
               </button>
             </motion.div>
           ))}
         </div>
+
+        <p className="text-center text-xs text-neutral-500 max-w-xl mx-auto">
+          Plans renew automatically until cancelled. Cancel anytime in Settings, then Manage Subscription. Payments are handled by Stripe.{' '}
+          <Link to="/terms" className="underline">Terms</Link> · <Link to="/privacy" className="underline">Privacy</Link>
+        </p>
       </div>
     </div>
   );

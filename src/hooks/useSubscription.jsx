@@ -49,14 +49,14 @@ export function useSubscription() {
     fetchSubscription();
   }, [user, isAuthenticated]);
 
+  const isPremium =
+    ['weekly', 'monthly', 'annual'].includes(tier) && ['active', 'trialing'].includes(status);
+
   return {
     tier,
     status,
     loading,
     error,
-    // Helper booleans for easy access gating in the UI
-    isPremium: tier === 'weekly' || tier === 'monthly' || tier === 'annual',
-    canUseAdvancedFilters: tier === 'annual',
-    canUseMultiAppStacking: tier === 'monthly' || tier === 'annual',
+    isPremium,
   };
 }

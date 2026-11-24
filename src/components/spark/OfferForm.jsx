@@ -1,10 +1,9 @@
 import React, { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Zap, Fuel, GaugeCircle, Pencil, CheckCheck, Undo2, MapPin, ShoppingBag, ScanLine, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { apiPost } from "@/lib/apiFetch";
 
 const STORAGE_KEY = "spark_defaults";
 
@@ -59,13 +58,11 @@ export default function OfferForm({ onEvaluate, isLoading }) {
     setScanError("");
     try {
       const image_base64 = await fileToBase64(file);
-      const res = await fetch('/api/scan-offer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image_base64, platform: offer.platform }),
+      const { data } = await apiPost('/api/scan-offer', {
+        image_base64,
+        platform: offer.platform,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
-      if (!res.ok) throw new Error('Scan failed');
-      const { data } = await res.json();
 
       setOffer(prev => ({
         ...prev,
@@ -78,7 +75,11 @@ export default function OfferForm({ onEvaluate, isLoading }) {
         dropoff_zone: data.dropoff_zone || prev.dropoff_zone,
       }));
     } catch (err) {
-      setScanError("Couldn't read that screenshot — enter the numbers manually.");
+      setScanError(
+        err.code === 'limit_reached'
+          ? err.message
+          : "Couldn't read that screenshot — enter the numbers manually."
+      );
     } finally {
       setIsScanning(false);
     }

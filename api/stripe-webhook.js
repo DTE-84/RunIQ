@@ -63,11 +63,20 @@ export default async function handler(req, res) {
           break;
         }
 
+        // Skip events for accounts that were deleted (cancelling a deleted user's plan fires this event)
+        const { data: existing } = await supabaseAdmin.auth.admin.getUserById(userId);
+        if (!existing?.user) {
+          console.log('User no longer exists. Skipping.');
+          break;
+        }
+
         const priceId = subscription.items.data[0].price.id;
         const tier = mapStripeTier(priceId);
         
         // Convert unix timestamps to ISO
-        const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+        // Newer Stripe API versions report the period end on the item instead of the subscription
+        const periodEndUnix = subscription.current_period_end ?? subscription.items.data[0]?.current_period_end;
+        const currentPeriodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
 
         // Use the secure RPC function we created in SQL to update the user
         const { error } = await supabaseAdmin.rpc('update_user_subscription', {

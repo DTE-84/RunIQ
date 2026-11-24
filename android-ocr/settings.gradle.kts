@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "SparkIQ Mobile"
+rootProject.name = "RunIQ Overlay"
 include(":app")

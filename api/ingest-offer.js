@@ -1,68 +1,46 @@
-import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
+import { supabaseAdmin, requireDeviceUser, consumeUsage } from './_lib/auth.js';
 
-function isAuthorized(req) {
-  const expected = process.env.INGEST_SHARED_SECRET;
-  if (!expected) return false; // fail closed if the secret isn't configured
-
-  const provided = req.headers['x-runiq-secret'] || '';
-  const expectedBuf = Buffer.from(expected);
-  const providedBuf = Buffer.from(provided);
-  if (expectedBuf.length !== providedBuf.length) return false;
-  return crypto.timingSafeEqual(expectedBuf, providedBuf);
-}
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
 
 export default async function handler(req, res) {
-  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!isAuthorized(req)) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  const userId = await requireDeviceUser(req, res);
+  if (!userId) return;
+
+  if (!(await consumeUsage(userId, 'ingest', req.body?.timezone, res))) return;
+
+  const offerData = req.body || {};
+  const pay = num(offerData.pay);
+  const miles = num(offerData.miles);
+  if (pay === null || miles === null) {
+    return res.status(400).json({ error: 'pay and miles are required numbers' });
   }
 
-  // Initialize Supabase Admin Client
-  const supabase = createClient(
-    process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
-  );
+  const dbPayload = {
+    user_id: userId,
+    platform: String(offerData.platform || 'Spark').slice(0, 30),
+    pay,
+    tips: num(offerData.tips) ?? 0,
+    miles,
+    miles_back: num(offerData.miles_back) ?? 0,
+    time_minutes: num(offerData.time_minutes) ?? 30,
+    items: num(offerData.items) ?? 0,
+    dropoff_zone: String(offerData.dropoff_zone || 'Unknown').slice(0, 100),
+    rating: String(offerData.rating || 'Pending').slice(0, 20),
+    net_profit: num(offerData.net_profit) ?? pay,
+    hourly_rate: num(offerData.hourly_rate) ?? 0,
+    per_mile_rate: num(offerData.per_mile_rate) ?? 0,
+    gas_cost: num(offerData.gas_cost) ?? 0,
+  };
 
-  try {
-    // Look up the primary user to assign these OCR offers to
-    const { data: users, error: userError } = await supabase.auth.admin.listUsers();
-    if (userError || !users?.users?.length) {
-      throw new Error('Failed to identify target user for OCR ingestion.');
-    }
-    
-    // Assign to the first user found (for this single-tenant prototype architecture)
-    const targetUserId = users.users[0].id;
-
-    const offerData = req.body;
-
-    const dbPayload = {
-      user_id: targetUserId,
-      platform: offerData.platform || 'Spark',
-      pay: offerData.pay,
-      tips: offerData.tips || 0,
-      miles: offerData.miles,
-      miles_back: offerData.miles_back || 0,
-      time_minutes: offerData.time_minutes || 30,
-      items: offerData.items || 0,
-      dropoff_zone: offerData.dropoff_zone || 'Unknown',
-      rating: offerData.rating || 'Pending',
-      net_profit: offerData.net_profit || offerData.pay,
-      hourly_rate: offerData.hourly_rate || 0,
-      per_mile_rate: offerData.per_mile_rate || 0,
-      gas_cost: offerData.gas_cost || 0
-    };
-
-    const { error: insertError } = await supabase.from('offers').insert([dbPayload]);
-    if (insertError) throw insertError;
-
-    return res.status(200).json({ success: true, message: 'Telemetry uplink secured' });
-  } catch (error) {
-    console.error('Error during OCR ingest:', error);
-    return res.status(500).json({ error: error.message });
+  const { error } = await supabaseAdmin.from('offers').insert([dbPayload]);
+  if (error) {
+    console.error('Error during offer ingest:', error);
+    return res.status(500).json({ error: 'Failed to save offer.' });
   }
+
+  return res.status(200).json({ success: true });
 }

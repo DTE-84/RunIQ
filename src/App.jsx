@@ -4,6 +4,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import Auth from './pages/Auth'
+import ResetPassword from './pages/ResetPassword'
 import Pricing from './pages/Pricing'
 import { Privacy, Terms } from './pages/Legal'
 import InstallPrompt from './components/InstallPrompt'
@@ -24,6 +25,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/pricing" element={

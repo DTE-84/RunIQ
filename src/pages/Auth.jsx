@@ -36,12 +36,19 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: { emailRedirectTo: `${window.location.origin}/` },
         });
         if (error) throw error;
-        setMessage('Check your email for the confirmation link.');
+        // Supabase returns a user with no identities (and sends no email) when the address is already registered.
+        if (data?.user && data.user.identities?.length === 0) {
+          setError('An account with this email already exists. Try signing in instead.');
+          setIsSignUp(false);
+          return;
+        }
+        setMessage('Check your email for the confirmation link. If it does not arrive in a few minutes, check spam.');
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -52,6 +59,27 @@ export default function Auth() {
       }
     } catch (err) {
       setError(err.message || 'An error occurred during authentication.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setError('');
+    setMessage('');
+    if (!email.trim()) {
+      setError('Enter your email above first, then tap Forgot password.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setMessage('If an account exists for that email, a reset link is on its way. Check spam if it does not arrive.');
+    } catch (err) {
+      setError(err.message || 'Could not send the reset email.');
     } finally {
       setLoading(false);
     }
@@ -148,6 +176,19 @@ export default function Auth() {
                 />
               </div>
             </div>
+
+            {!isSignUp && (
+              <div className="-mt-3 text-right">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={loading}
+                  className="text-xs text-neutral-400 hover:text-white transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
 
             {error && (
               <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 p-3 rounded-lg border border-red-400/20">

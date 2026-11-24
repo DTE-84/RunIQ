@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,6 +31,17 @@ export default function Auth() {
     if (!email.trim() || !password.trim()) {
       setError('Please enter both email and password.');
       return;
+    }
+
+    if (isSignUp) {
+      if (password.length < 8) {
+        setError('Use at least 8 characters for your password.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -177,6 +189,25 @@ export default function Auth() {
               </div>
             </div>
 
+            {isSignUp && (
+              <div>
+                <label className="block text-sm font-semibold text-neutral-300 mb-2">Re-type password</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-neutral-500" />
+                  </div>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className="block w-full pl-10 pr-3 py-3 border border-white/10 rounded-xl bg-black/50 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition-all sm:text-sm"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+            )}
+
             {!isSignUp && (
               <div className="-mt-3 text-right">
                 <button
@@ -237,7 +268,12 @@ export default function Auth() {
 
           <div className="mt-4 text-center">
             <button
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError('');
+                setMessage('');
+                setConfirmPassword('');
+              }}
               className="text-sm text-neutral-400 hover:text-white transition-colors"
             >
               {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}

@@ -31,3 +31,15 @@ dist-ssr
 .vite
 .vercel
 .env*
+
+# Android
+android-ocr/.gradle/
+android-ocr/build/
+android-ocr/app/build/
+android-ocr/local.properties
+runiq-overlay.zip
+.codex/
+runiq-overlay/android/.gradle/
+runiq-overlay/android/build/
+runiq-overlay/android/app/build/
+runiq-overlay/android/local.properties

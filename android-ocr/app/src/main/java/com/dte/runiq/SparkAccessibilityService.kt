@@ -15,6 +15,9 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,6 +27,7 @@ class SparkAccessibilityService : AccessibilityService() {
     private companion object {
         const val CAPTURE_INTERVAL_MS = 1500L
         const val OFFER_DEDUPE_MS = 60_000L
+        const val BUBBLE_VISIBLE_MS = 15_000L
     }
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -33,15 +37,21 @@ class SparkAccessibilityService : AccessibilityService() {
     private var lastOfferKey: String? = null
     private var lastOfferAt = 0L
 
+    private val mainScope = MainScope()
+    private var hideJob: Job? = null
     private var bubbleOverlayView: BubbleOverlayView? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         Log.d("SparkIQ_OCR", "Accessibility Service Connected: Interceptor Active")
-        // Initialize Overlay Manager on main thread
-        kotlinx.coroutines.MainScope().launch {
-            bubbleOverlayView = BubbleOverlayView(this@SparkAccessibilityService)
-        }
+        bubbleOverlayView = BubbleOverlayView(this)
+    }
+
+    override fun onDestroy() {
+        hideJob?.cancel()
+        bubbleOverlayView?.remove()
+        bubbleOverlayView = null
+        super.onDestroy()
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -67,9 +77,7 @@ class SparkAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {
         Log.w("SparkIQ_OCR", "Accessibility Service Interrupted")
-        kotlinx.coroutines.MainScope().launch {
-            bubbleOverlayView?.removeBubble()
-        }
+        mainScope.launch { bubbleOverlayView?.remove() }
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -142,12 +150,12 @@ class SparkAccessibilityService : AccessibilityService() {
             val milesMatch = milesRegex.find(rawText)?.groupValues?.get(1)?.toDoubleOrNull()
             val itemsMatch = itemsRegex.find(rawText)?.groupValues?.get(1)?.toIntOrNull()
 
-            if (priceMatch != null && milesMatch != null && milesMatch > 0) {
-                val netPerHour = (priceMatch / milesMatch) * 20.0 // Assuming roughly 20 miles driven in an hour as a basic heuristic, or a standard formula
-                val dollarsPerMile = priceMatch / milesMatch
-                
-                Log.d("SparkIQ_OCR", "High-Fidelity Telemetry Extracted: Price=$priceMatch, Miles=$milesMatch, Items=$itemsMatch")
-                Log.d("SparkIQ_OCR", "Calculated Logic: $/Mile=$dollarsPerMile")
+            val result = if (priceMatch != null && milesMatch != null) {
+                Calc.evaluate(applicationContext, priceMatch, milesMatch)
+            } else null
+
+            if (priceMatch != null && milesMatch != null && result != null) {
+                Log.d("SparkIQ_OCR", "Parsed offer: pay=$priceMatch miles=$milesMatch items=$itemsMatch -> ${result.verdict} ${"%.2f".format(result.perMile)}/mi ${"%.0f".format(result.perHour)}/hr")
 
                 // The same offer stays on screen across many captures; only act on it once.
                 val offerKey = "$priceMatch|$milesMatch|${itemsMatch ?: 0}"
@@ -157,21 +165,21 @@ class SparkAccessibilityService : AccessibilityService() {
                 lastOfferAt = now
 
                 if (!isRepeat) {
-                    // Dispatch telemetry payload to the RunIQ backend (fire-and-forget while bubble shows)
                     scope.launch {
-                        TelemetryClient.dispatch(applicationContext, priceMatch, milesMatch, itemsMatch ?: 0, netPerHour, dollarsPerMile)
+                        TelemetryClient.dispatch(applicationContext, priceMatch, milesMatch, itemsMatch ?: 0, result.perHour, result.perMile)
                     }
-
-                    // Invoke BubbleOverlayView with calculated metrics on Main Thread
-                    withContext(Dispatchers.Main) {
-                        val isValid = netPerHour >= 20.0
-                        bubbleOverlayView?.showBubble(netPerHour, dollarsPerMile, isValid)
-
-                        // After 5 seconds, clear the bubble to keep the UI clean
-                        kotlinx.coroutines.delay(5000)
-                        bubbleOverlayView?.removeBubble()
+                    // Show the verdict without blocking the next capture; a newer offer replaces it.
+                    mainScope.launch {
+                        hideJob?.cancel()
+                        bubbleOverlayView?.show(result)
+                        hideJob = launch {
+                            delay(BUBBLE_VISIBLE_MS)
+                            bubbleOverlayView?.remove()
+                        }
                     }
                 }
+            } else {
+                Log.d("SparkIQ_OCR", "No offer recognised on this screen (pay=$priceMatch miles=$milesMatch)")
             }
             isProcessing = false
         }

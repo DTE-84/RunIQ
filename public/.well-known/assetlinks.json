@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.dte.runiq",
+      "sha256_cert_fingerprints": ["EF:ED:3C:F1:5B:DF:04:B9:46:28:7A:4B:4A:BE:25:C9:F3:0A:B9:2C:CA:CD:2C:2F:8C:31:A9:8A:67:9D:7E:B9"]
+    }
+  }
+]

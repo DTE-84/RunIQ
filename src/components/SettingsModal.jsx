@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Settings, Trash2, ShieldAlert, KeyRound, Copy, Check, CreditCard } from 'lucide-react';
+import { X, Settings, Trash2, ShieldAlert, KeyRound, Copy, Check, CreditCard, Layers } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { apiPost } from '@/lib/apiFetch';
+
+// Link to download the RunIQ Android app (set VITE_ANDROID_APP_URL in Vercel once the APK is hosted).
+const ANDROID_APP_URL = import.meta.env.VITE_ANDROID_APP_URL || '';
+const IS_ANDROID = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
 
 export default function SettingsModal({ isOpen, onClose, onClearHistory, isClearing, isPremium }) {
   const [autoClear, setAutoClear] = useState('never');
@@ -208,6 +212,39 @@ export default function SettingsModal({ isOpen, onClose, onClearHistory, isClear
               </div>
 
               <div className="h-[1px] bg-white/5 w-full my-4" />
+
+              {/* Floating overlay (Android app only) */}
+              {IS_ANDROID && (
+                <>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-bold text-white flex items-center gap-1">
+                        <Layers className="w-4 h-4 text-[#00FF85]" /> Floating overlay
+                        <span className="ml-1 px-1.5 py-0.5 text-[9px] uppercase tracking-wider font-bold bg-amber-500/20 text-amber-400 rounded-full">Beta</span>
+                      </Label>
+                      <p className="text-[11px] text-neutral-400 font-medium mt-1">
+                        Choose Auto-fill (reads Spark&apos;s screen for you), Manual (a bubble you type into), or Off.
+                      </p>
+                    </div>
+                    <a
+                      href="runiq://overlay"
+                      className="w-full h-12 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white border border-white/10 font-bold rounded-xl"
+                    >
+                      Open overlay settings
+                    </a>
+                    <p className="text-[11px] text-neutral-500 leading-relaxed">
+                      Nothing happens? You need the RunIQ Android app (not just the website).{' '}
+                      {ANDROID_APP_URL ? (
+                        <a href={ANDROID_APP_URL} className="text-[#00FF85] underline">Download it here</a>
+                      ) : (
+                        'The download is coming soon.'
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="h-[1px] bg-white/5 w-full my-4" />
+                </>
+              )}
 
               {/* Manual Clear */}
               <div className="space-y-3">

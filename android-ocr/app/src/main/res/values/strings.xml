@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">RunIQ Overlay</string>
+    <string name="app_name">RunIQ</string>
     <string name="accessibility_service_description">RunIQ Offer Reader looks at the Spark Driver app only, to find the pay, miles and item count of an offer on screen so RunIQ can show you a quick rating. It reads text on that screen on your phone and sends only those numbers (never the screenshot) to your RunIQ account. It does not tap, type, or change anything in other apps.</string>
+    <string name="shortcut_overlay_short">Overlay</string>
+    <string name="shortcut_overlay_long">Overlay settings</string>
+    <string name="asset_statements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://runiq-ashen.vercel.app\"}}]</string>
 </resources>

@@ -22,10 +22,13 @@ object Calc {
     data class Result(val perMile: Double, val perHour: Double, val minutes: Double, val verdict: Verdict)
 
     /** Time is estimated (about 1.8 min per mile plus 7 min per stop) because offers rarely show it. */
-    fun evaluate(ctx: Context, pay: Double, miles: Double, stops: Int = 1, minutes: Double? = null): Result? {
-        if (pay <= 0 || miles <= 0) return null
-        val mins = minutes ?: (miles * 1.8 + stops.coerceAtLeast(1) * 7)
-        val perMile = pay / miles
+    fun evaluate(
+        ctx: Context, pay: Double, miles: Double, deadhead: Double = 0.0, stops: Int = 1, minutes: Double? = null
+    ): Result? {
+        val totalMiles = miles + deadhead
+        if (pay <= 0 || totalMiles <= 0) return null
+        val mins = minutes ?: (totalMiles * 1.8 + stops.coerceAtLeast(1) * 7)
+        val perMile = pay / totalMiles
         val perHour = pay / (mins / 60.0)
 
         val okMile = perMile >= minPerMile(ctx)

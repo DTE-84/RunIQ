@@ -56,7 +56,7 @@ class SparkAccessibilityService : AccessibilityService() {
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null) return
+        if (event == null || OverlayMode.get(this) != OverlayMode.AUTOFILL) return
         
         // Listen for window state changes or content updates (when a gig offer appears)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || 
